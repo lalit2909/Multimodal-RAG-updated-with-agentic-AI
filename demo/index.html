@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enhanced Multimodal RAG Agent — Live Demo</title>
+<style>
+  :root {
+    --bg: #0e1117;
+    --panel: #161b22;
+    --panel-2: #1c232d;
+    --border: #2a3038;
+    --text: #e6edf3;
+    --muted: #9aa4af;
+    --accent: #7c3aed;
+    --accent-2: #4f46e5;
+    --green: #16a34a;
+    --blue: #2563eb;
+    --purple: #7c3aed;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  header {
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(124,58,237,0.10), transparent);
+  }
+  header h1 {
+    margin: 0 0 6px;
+    font-size: 24px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 28px 32px 60px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+  }
+  @media (max-width: 800px) { .wrap { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .card h2 {
+    margin: 0 0 10px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .card p { margin: 0 0 8px; color: var(--muted); }
+  .card code {
+    background: var(--panel-2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font: 12px var(--mono);
+    color: #c4b5fd;
+  }
+
+  /* Flow diagram */
+  .flow {
+    grid-column: 1 / -1;
+  }
+  .flow-steps {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    margin-top: 14px;
+  }
+  @media (max-width: 800px) { .flow-steps { grid-template-columns: repeat(2, 1fr); } }
+  .step {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 12px;
+    color: var(--muted);
+    position: relative;
+  }
+  .step strong { display: block; color: var(--text); margin-bottom: 4px; font-size: 13px; }
+  .step::after {
+    content: "→";
+    position: absolute;
+    right: -16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--accent);
+    font-size: 18px;
+  }
+  .step:last-child::after { content: ""; }
+
+  /* Badges */
+  .badges {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .badge {
+    border-radius: 10px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .badge.green  { border-left: 4px solid var(--green); }
+  .badge.blue   { border-left: 4px solid var(--blue); }
+  .badge.purple { border-left: 4px solid var(--purple); }
+  .badge .label { font-weight: 600; margin-bottom: 4px; }
+  .badge.green .label  { color: var(--green); }
+  .badge.blue .label   { color: var(--blue); }
+  .badge.purple .label { color: var(--purple); }
+  .badge p { font-size: 13px; color: var(--muted); margin: 0; }
+
+  /* Chat demo */
+  .chat-demo { grid-column: 1 / -1; }
+  .msg {
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border);
+  }
+  .msg.user { background: var(--panel-2); }
+  .msg.assistant { background: var(--panel); }
+  .msg .role { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .src-tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .src-tag.green  { background: rgba(22,163,74,0.15); color: #4ade80; border: 1px solid rgba(22,163,74,0.3); }
+  .src-tag.blue   { background: rgba(37,99,235,0.15); color: #60a5fa; border: 1px solid rgba(37,99,235,0.3); }
+  .src-tag.purple { background: rgba(124,58,237,0.15); color: #c4b5fd; border: 1px solid rgba(124,58,237,0.3); }
+
+  /* Stack list */
+  ul.stack { list-style: none; padding: 0; margin: 0; }
+  ul.stack li {
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+  ul.stack li:last-child { border-bottom: none; }
+  ul.stack li span:first-child { color: var(--text); }
+  ul.stack li span:last-child { color: var(--muted); font-family: var(--mono); font-size: 12px; }
+
+  .cta {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 24px;
+  }
+  .cta a {
+    display: inline-block;
+    padding: 10px 22px;
+    background: var(--accent);
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+  .cta a:hover { background: var(--accent-2); }
+  .cta p { color: var(--muted); font-size: 13px; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧠 Enhanced Multimodal RAG Agent</h1>
+  <p>Multimodal ingestion (PDF · Image · Audio · Video) + Agentic decision layer (Local KB ↔ Web Search) + Source-attributed answers</p>
+</header>
+
+<div class="wrap">
+
+  <div class="card flow">
+    <h2>How the agent works</h2>
+    <p>The agent doesn't blindly answer. It retrieves, evaluates, and only falls back to the web when local context is insufficient.</p>
+    <div class="flow-steps">
+      <div class="step"><strong>1. Query</strong>User submits a question.</div>
+      <div class="step"><strong>2. Local retrieval</strong>Top-5 chunks from ChromaDB (sim ≥ 0.30).</div>
+      <div class="step"><strong>3. Evaluate</strong>Gemini judges if context is sufficient.</div>
+      <div class="step"><strong>4a. Sufficient?</strong>If yes → answer from local KB only.</div>
+      <div class="step"><strong>4b. Fallback</strong>If no → DuckDuckGo search + fetch.</div>
+      <div class="step"><strong>5. Final answer</strong>Labeled Local / Web / Both.</div>
+    </div>
+  </div>
+
+  <div class="badges">
+    <div class="badge green">
+      <div class="label">🟢 Local Knowledge Base</div>
+      <p>Answered entirely from your uploaded PDFs / images / audio / video.</p>
+    </div>
+    <div class="badge blue">
+      <div class="label">🔵 Internet Sources</div>
+      <p>Local KB didn't have it; fell back to DuckDuckGo web results.</p>
+    </div>
+    <div class="badge purple">
+      <div class="label">🟣 Both</div>
+      <p>Final answer drew materially on local + web context.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Tech stack</h2>
+    <ul class="stack">
+      <li><span>Frontend</span><span>Streamlit</span></li>
+      <li><span>LLM + Embeddings</span><span>Gemini 2.0 Flash</span></li>
+      <li><span>Embedding model</span><span>text-embedding-004</span></li>
+      <li><span>Vector DB</span><span>ChromaDB (persistent)</span></li>
+      <li><span>Web search</span><span>DuckDuckGo (no key)</span></li>
+      <li><span>PDF / OCR</span><span>PyPDF2 + pdfplumber</span></li>
+      <li><span>Multimodal</span><span>Gemini Vision + native audio/video</span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Supported inputs</h2>
+    <ul class="stack">
+      <li><span>PDF</span><span>.pdf</span></li>
+      <li><span>Images</span><span>.png .jpg .jpeg .webp .gif .bmp</span></li>
+      <li><span>Audio</span><span>.wav .mp3 .aac .flac .m4a .ogg</span></li>
+      <li><span>Video</span><span>.mp4 .mpeg .mov .avi .webm</span></li>
+      <li><span>Text</span><span>.txt .md</span></li>
+    </ul>
+  </div>
+
+  <div class="card chat-demo">
+    <h2>Sample chat (illustrative)</h2>
+
+    <div class="msg user">
+      <div class="role">User</div>
+      What is the capital of France?
+    </div>
+    <div class="msg assistant">
+      <div class="role">Assistant</div>
+      <span class="src-tag green">🟢 Source: Local Knowledge Base</span>
+      The capital of France is Paris. <em>[source: world_geography.pdf, sim=0.87]</em>
+    </div>
+
+    <div class="msg user">
+      <div class="role">User</div>
+      What's the latest SpaceX launch?
+    </div>
+    <div class="msg assistant">
+      <div class="role">Assistant</div>
+      <span class="src-tag blue">🔵 Source: Internet Sources</span>
+      No local documents covered this. Retrieved from web: SpaceX's most recent launch was… <em>[source: reuters.com]</em>
+    </div>
+
+    <div class="msg user">
+      <div class="role">User</div>
+      Summarize the Q3 financials from the uploaded report and compare with current market trends.
+    </div>
+    <div class="msg assistant">
+      <div class="role">Assistant</div>
+      <span class="src-tag purple">🟣 Source: Both</span>
+      From your uploaded Q3 report, revenue grew 12% YoY… <em>[source: q3_report.pdf]</em>. Web context indicates the sector averaged 8% growth… <em>[source: bloomberg.com]</em>.
+    </div>
+  </div>
+
+  <div class="cta">
+    <a href="https://github.com/lalit2029/enhanced-multimodal-rag-agent">View Source on GitHub →</a>
+    <p>To run locally: <code>pip install -r requirements.txt</code> &nbsp;·&nbsp; <code>streamlit run app.py</code></p>
+  </div>
+
+</div>
+
+</body>
+</html>
